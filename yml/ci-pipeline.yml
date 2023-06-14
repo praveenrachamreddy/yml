@@ -1,0 +1,116 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-pipeline
+spec:
+  params:
+    - description: git url to clone 
+      name: git-source-url
+      type: string
+    - default: ''
+      description: 'git revision to checkout (branch, tag, sha, ref…)'
+      name: git-source-revision
+      type: string
+    - description: image to be built from the code
+      name: IMAGE # quay.io/praveenrachamreddy/ci-pipeline
+      type: string
+    - description: name of the deployment to be patched
+      name: deployment-name
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: $(params.git-source-url)
+        - name: revision
+          value: $(params.git-source-revision)
+        - name: sslVerify
+          value: 'false'
+        - name: noProxy
+          value: 'true'
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+        # - name: ssh-directory
+        #   workspace: ssh-secret
+    # - name: maven-build
+    #   params:
+    #     - name: GOALS
+    #       value:
+    #         - clean
+    #         - test
+    #         # - install
+    #         - package
+    #         # - deploy
+    #   runAfter:
+    #     - git-clone
+    #   taskRef:
+    #     kind: ClusterTask
+    #     name: maven
+    #   workspaces:
+    #     - name: source
+    #       workspace: shared-workspace
+    #     - name: maven-settings
+    #       workspace: maven-settings
+    - name: static-code-analysis
+      params:
+        - name: GOALS
+          value:
+            - 'sonar:sonar'
+            - -Dsonar.projectKey=spring-petclinic \
+            - -Dsonar.host.url=https://sonarqube-praveenkumar-reddy.apps.ocp4.imss.com \
+            - -Dsonar.login=4805753aebfa6412a6960ff4d0ad67b6ecb956ee
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: ClusterTask
+        name: maven
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: maven-settings
+          workspace: shared-workspace
+    # - name: build-image
+    #   params:
+    #     - name: IMAGE
+    #       value: $(params.IMAGE)
+    #   runAfter:
+    #     - maven-build
+    #   taskRef:
+    #     kind: ClusterTask
+    #     name: buildah
+    #   workspaces:
+    #     - name: source
+    #       workspace: shared-workspace
+    # - name: apply-manifests
+    #   runAfter:
+    #     - build-image
+    #   taskRef:
+    #     kind: Task
+    #     name: apply-manifests
+    #   workspaces:
+    #     - name: source
+    #       workspace: shared-workspace
+    # # - name: update-deployment
+    # #   params:
+    # #     - name: deployment
+    # #       value: $(params.deployment-name)
+    # #     - name: IMAGE
+    # #       value: $(params.IMAGE)
+    # #   runAfter:
+    # #     - apply-manifests
+    # #   taskRef:
+    # #     kind: Task
+    # #     name: update-deployment
+    # - name: sendmail
+    #   runAfter:
+    #     - build-image
+    #   taskRef:
+    #     kind: Task
+    #     name: sendmail
+  workspaces:
+    - name: shared-workspace # pvc named shared-workspace
+    - name: maven-settings   # config map with maven settings like sonar setings nexus etc

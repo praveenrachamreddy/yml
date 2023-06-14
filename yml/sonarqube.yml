@@ -1,0 +1,53 @@
+kind: "DeploymentConfig"
+apiVersion: "v1"
+metadata:
+  name: "sonarqube"
+spec:
+  template: 
+    metadata:
+      labels:
+        name: "sonarqube"
+    spec:
+      containers:
+        - name: "sonarqube"
+          image: "docker.io/sonarqube:latest"
+          ports:
+            - containerPort: 9000
+              protocol: "TCP"
+      # imagePullSecrets:
+      # - name: 7691997-praveen-pull-secret
+  replicas: 1
+  triggers:
+    - type: "ConfigChange" 
+  strategy: 
+    type: "Rolling"
+  paused: false 
+  revisionHistoryLimit: 2 
+  minReadySeconds: 0 
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube
+  namespace: pkr-demo
+spec:
+  selector:
+    name: "sonarqube"
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: sonarqube
+  namespace: pkr-demo
+spec:
+  path: /
+  to:
+    kind: Service
+    name: sonarqube
+  port:
+    targetPort: 9000

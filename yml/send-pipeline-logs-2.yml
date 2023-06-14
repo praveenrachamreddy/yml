@@ -1,0 +1,153 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: send-pipeline-logs-2
+spec:
+  description: >-
+    This task sends the logs of a Tekton PipelineRun to one or more recipients
+    via SMTP server.
+  params:
+    - default: server-secret
+      description: 'secret name for SMTP server information (url, port, password)'
+      name: server
+      type: string
+    - default: 'ci got success , Please find attached logs'
+      description: plain text email subject
+      name: subject
+      type: string
+    - default: rachamreddypraveen@gmail.com
+      description: sender email address
+      name: sender
+      type: string
+    - default: rachamreddypraveen2@gmail.com
+      description: recipient email addresses (space delimited list)
+      name: recipients
+      type: string
+  steps:
+    - image: 'image-registry.openshift-image-registry.svc:5000/openshift/cli:latest'
+      name: get-pipelinerun-logs
+      resources: {}
+      script: >
+        #!/usr/bin/env bash
+
+        wget
+        https://mirror.openshift.com/pub/openshift-v4/clients/pipeline/0.21.0/tkn-linux-amd64-0.21.0.tar.gz
+
+
+        tar xvzf tkn-linux-amd64-0.21.0.tar.gz -C /usr/bin
+
+
+        rm -rf tkn-linux-amd64-0.21.0.tar.gz
+
+
+        oc login -u admin -pr3dh4t1! --insecure-skip-tls-verify
+
+
+        oc project ci-pipeline
+
+        timeout 30s tkn pipelinerun logs -f -L >
+        $(workspaces.mail.path)/logs.txt 
+
+        ls $(workspaces.mail.path)/
+      workingDir: $(workspaces.mail.path)
+    - env:
+        - name: USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: server-secret
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: server-secret
+        - name: TLS
+          valueFrom:
+            secretKeyRef:
+              key: tls
+              name: server-secret
+        - name: SERVER
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: server-secret
+        - name: PORT
+          valueFrom:
+            secretKeyRef:
+              key: port
+              name: server-secret
+      image: >-
+        docker.io/library/python:3.8-alpine@sha256:e11bbd37d4371894e954421b85dbe8dd4eb7198d7cb4ed144ab529f19f57c3f1
+      name: send
+      resources: {}
+      script: |
+        #!/usr/bin/env python3
+        import smtplib
+        import mimetypes
+        from email.message import EmailMessage
+        import os 
+
+
+
+        port = os.getenv('PORT')
+
+        smtp_server = os.getenv('SERVER')
+
+        sender_email = "$(params.sender)" 
+
+        receiver_emails = "$(params.recipients)"
+
+        user = os.getenv('USER')
+
+        password = os.getenv('PASSWORD')
+
+        tls = os.getenv('TLS')
+
+        subject = "$(params.subject)"
+
+        print(port)
+        print(user)
+        print(receiver_emails)
+
+        print(password)
+
+        print(tls)
+        print(smtp_server)
+
+        print(sender_email)
+
+
+
+        # Create message and set text content
+        msg = EmailMessage()
+        msg['Subject'] = 'Ci-pipeline-status'
+        msg['From'] = sender_email
+        msg['To'] = receiver_emails
+        # Set text content
+        msg.set_content(subject)
+        # os.environ['WORKSPACE'] = 'workspaces'
+        filename= "$(workspaces.mail.path)"
+
+        def attach_file_to_email(email, filename):
+            """Attach a file identified by filename, to an email message"""
+            with open(filename, 'rb') as fp:
+                file_data = fp.read()
+                maintype, _, subtype = (mimetypes.guess_type(filename)[0] or 'application/octet-stream').partition("/")
+                email.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=filename)
+
+        # Attach files
+        attach_file_to_email(msg, "logs.txt")
+
+
+        def send_mail_smtp(mail, port, url, user, password):
+            s = smtplib.SMTP(url, port)
+            s.starttls()
+            s.login(user, password)
+            s.send_message(mail)
+            s.quit()
+
+        send_mail_smtp(msg, port, smtp_server, user, password)
+      workingDir: $(workspaces.mail.path)
+  workspaces:
+    - description: The workspace consisting of maven project.
+      name: mail

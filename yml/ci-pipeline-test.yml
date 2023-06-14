@@ -1,0 +1,168 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-pipeline
+spec:
+  params:
+    - name: APP_SOURCE_GIT
+      type: string
+      description: The application git repository
+      default: https://github.com/praveenrachamreddy/sample-web-application.git
+    - name: APP_SOURCE_REVISION
+      type: string
+      description: The application git revision
+      default: ansible-sonar
+    - name: IMAGE
+      default: quay.io/praveenrachamreddy/ci-pipeline
+    - name: TAG
+      default: latest
+    - name: APP_CONFIG_GIT
+      type: string
+      description: The application configuration git repository
+      default: https://github.com/praveenrachamreddy/WebApp-config.git
+  workspaces:
+  - name: workspace
+  - name: maven-settings
+  tasks:
+  - name: source-clone
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    workspaces:
+    - name: output
+      workspace: workspace
+    params:
+    - name: url
+      value: $(params.APP_SOURCE_GIT)
+    - name: revision
+      value: $(params.APP_SOURCE_REVISION)
+  # - name: code-analysis
+  #   taskRef:
+  #     name: maven
+  #     kind: ClusterTask
+  #   runAfter:
+  #     - junit-tests
+  #   workspaces:
+  #   - name: source
+  #     workspace: workspace
+  #   - name: maven-settings
+  #     workspace: maven-settings
+  #   params:
+  #   - name: GOALS
+  #     value:
+  #     - sonar:sonar
+  #     - -Dmaven.wagon.http.ssl.insecure=true # use this to disable ssl verification 
+  # - name: junit-tests
+  #   params:
+  #     - name: GOALS
+  #       value:
+  #       - test
+  #   runAfter:
+  #       - source-clone
+  #   taskRef:
+  #     kind: ClusterTask
+  #     name: maven
+  #   workspaces:
+  #   - name: source
+  #     workspace: workspace
+  #   - name: maven-settings
+  #     workspace: maven-settings
+  # - name: get-version
+  #   runAfter:
+  #     - junit-tests
+  #     - code-analysis
+  #   taskRef:
+  #     kind: Task
+  #     name: maven-get-project-version
+  #   workspaces:
+  #     - name: source
+  #       workspace: workspace
+  - name: release-app
+    taskRef:
+      name: maven
+      kind: ClusterTask
+    runAfter:
+      # - get-version
+      - source-clone
+    workspaces:
+    - name: source
+      workspace: workspace
+    - name: maven-settings
+      workspace: maven-settings
+    params:
+    - name: GOALS
+      value:
+      - package 
+      # - deploy
+  - name: build
+    params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.source-clone.results.commit)-$(params.TAG) #:$(tasks.get-version.results.version)-$(params.TAG)
+    runAfter:
+      - release-app
+     
+    taskRef:
+      kind: ClusterTask
+      name: buildah
+    workspaces:
+      - name: source
+        workspace: workspace
+  - name: git-update-deployment
+    params:
+      - name: GIT_REPOSITORY
+        value: $(params.APP_CONFIG_GIT)
+      - name: CURRENT_IMAGE
+        value: quay.io/praveenrachamreddy/ci-pipeline
+      - name: NEW_IMAGE
+        value: $(params.IMAGE):$(tasks.source-clone.results.commit)-$(params.TAG)' 
+      - name: NEW_DIGEST
+        value: $(tasks.build.results.IMAGE_DIGEST)
+      - name: KUSTOMIZATION_PATH
+        value: app
+    runAfter:
+      - build
+    taskRef:
+      kind: Task
+      name: git-update-deployment
+    workspaces:
+      - name: workspace
+        workspace: workspace
+  # finally:
+  #   - name: notify-any-failure # executed only when one of the dag tasks fail
+  #     when:
+  #     - input: $(tasks.status)
+  #       operator: in
+  #       values: ["Failed"]
+  #     taskRef:
+  #       name: sendmail
+  finally:
+    - name: sendmail-notification-succeeded
+      when:
+        - input: "Failed"
+          operator: notin
+          values:
+            - "$(tasks.source-clone.status)"
+            - "$(tasks.release-app.status)"
+            - "$(tasks.build.status)"
+            - "$(tasks.git-update-deployment.status)"
+      taskRef:
+        name: sendmail
+      params:
+        - name: body
+          value: "Succeeded"
+    - name: sendmail-notification-failed
+      when:
+        - input: "Failed"
+          operator: in
+          values:
+            - "$(tasks.source-clone.status)"
+            - "$(tasks.release-app.status)"
+            - "$(tasks.build.status)"
+            - "$(tasks.git-update-deployment.status)"
+      taskRef:
+        name: sendmail
+      params:
+        - name: body
+          value: "Failed"
+      
+      

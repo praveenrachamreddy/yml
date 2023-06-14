@@ -1,0 +1,25 @@
+- apiVersion: networking.istio.io/v1beta1
+  kind: Gateway
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.istio.io/v1beta1","kind":"Gateway","metadata":{"annotations":{},"creationTimestamp":"2022-10-11T12:26:37Z","generation":2,"managedFields":[{"apiVersion":"networking.istio.io/v1alpha3","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:selector":{".":{},"f:istio":{}}}},"manager":"OpenAPI-Generator","operation":"Update","time":"2022-10-11T12:26:37Z"},{"apiVersion":"networking.istio.io/v1beta1","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:servers":{}}},"manager":"oc","operation":"Update","time":"2022-10-14T12:10:44Z"}],"name":"finacle-istio-gateway","namespace":"santander-glm-dev","resourceVersion":"778641542","uid":"1b9ff879-7eba-42b5-9ac3-69259181e1c3"},"spec":{"selector":{"istio":"ingressgateway"},"servers":[{"hosts":["dev-glm-fc.apps.cloud.infosysitpaas.local"],"port":{"name":"http","number":80,"protocol":"HTTP"}}]}}
+    creationTimestamp: "2022-10-14T12:25:10Z"
+    generation: 17
+    name: finacle-istio-gateway
+    namespace: santander-glm-dev
+    resourceVersion: "780394481"
+    uid: 18d3d0d7-d2eb-44a2-962f-c686b2b12916
+  spec:
+    selector:
+      istio: ingressgateway
+    servers:
+    - hosts:
+      - dev-glm-fc.apps.cloud.infosysitpaas.local
+      port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      tls:
+        credentialName: dev-glm-fc-cert
+        mode: SIMPLE

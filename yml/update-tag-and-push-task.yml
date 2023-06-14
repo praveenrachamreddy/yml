@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-tag and push
+spec:
+  description: This task sends a simple email to receivers via SMTP server
+  params:
+    - name: image-name
+      type: string
+    - name: image-tag
+      type: string
+      default: "test"
+  steps:
+    - env:
+        - name: QUAY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: quay.io-secret
+        - name: QUAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: quay.io-secret
+      image: >-
+        image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      name: update-tag and push
+      resources: {}
+      script: |
+        yum install -y podman 
+        podman login -u ${QUAY_USERNAME} -p ${QUAY_PASSWORD} quay.io
+        podman push $(params.image-name):$(image-tag)
+      workingDir: /workspace/workspace
+  workspaces:
+    - name: workspace
+        

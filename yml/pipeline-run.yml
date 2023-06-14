@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: newpipeline-1-run-
+spec:
+  pipelineRef:
+    name: newpipeline-1
+  # podTemplate:
+  #   securityContext:
+  #     fsGroup: 65532
+  workspaces:
+  - name: shared-data
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+  - name: git-credentials
+    secret:
+      secretName: git-credentials
+  - name: docker-credentials
+    secret:
+      secretName: quay.io-pull-secret
+  params:
+  - name: url
+    value: https://github.com/praveenrachamreddy/sample-web-application.git
+  - name: image-reference
+    value: registry.redhat.io/praveenrachamreddy/pkr-demo/app1:latest

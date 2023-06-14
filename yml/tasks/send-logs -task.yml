@@ -1,0 +1,127 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  creationTimestamp: '2023-03-08T06:39:59Z'
+  generation: 22
+  managedFields:
+    - apiVersion: tekton.dev/v1beta1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          .: {}
+          'f:description': {}
+          'f:params': {}
+          'f:steps': {}
+          'f:workspaces': {}
+      manager: Mozilla
+      operation: Update
+      time: '2023-03-08T06:39:59Z'
+  name: send-pipeline-logs
+  namespace: praveenkumar-reddy
+  resourceVersion: '1768129570'
+  uid: 9b539ce3-0eb0-4c3d-be67-a0c7b8153179
+spec:
+  description: >-
+    This task sends the logs of a Tekton PipelineRun to one or more recipients
+    via SMTP server.
+  params:
+    - default: server-secret
+      description: 'secret name for SMTP server information (url, port, password)'
+      name: server
+      type: string
+    - default: ci-pipeline-logs
+      description: plain text email subject
+      name: subject
+      type: string
+    - default: Hi build success
+      description: plain text email body
+      name: body
+      type: string
+    - default: rachamreddypraveen@gmail.com
+      description: sender email address
+      name: sender
+      type: string
+    - default: rachamreddypraveen2@gmail.com
+      description: recipient email addresses (space delimited list)
+      name: recipients
+      type: string
+  steps:
+    - args:
+        - >-
+          echo pipelinerun logs
+
+          oc logs $(oc get pipelineruns -o yaml | grep podName | grep
+          ci-pipeline-3-* |tail -n 1 | awk -F':' '{print $2}') >
+          $(workspaces.source.path)/logs.txt
+      command:
+        - /bin/bash
+        - '-c'
+      image: 'image-registry.openshift-image-registry.svc:5000/openshift/cli:latest'
+      name: apply
+      resources: {}
+      workingDir: /workspace/source
+    - env:
+        - name: USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: server-secret
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: server-secret
+        - name: TLS
+          valueFrom:
+            secretKeyRef:
+              key: tls
+              name: server-secret
+        - name: SERVER
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: server-secret
+        - name: PORT
+          valueFrom:
+            secretKeyRef:
+              key: port
+              name: server-secret
+      image: >-
+        docker.io/library/python:3.8-alpine@sha256:e11bbd37d4371894e954421b85dbe8dd4eb7198d7cb4ed144ab529f19f57c3f1
+      name: send
+      resources: {}
+      script: |
+        #!/usr/bin/env python3
+        import smtplib, ssl, os
+        port = os.getenv('PORT')
+        smtp_server = os.getenv('SERVER')
+        sender_email = "$(params.sender)"
+        receiver_emails = "$(params.recipients)"
+        user = os.getenv('USER')
+        password = os.getenv('PASSWORD')
+        tls = os.getenv('TLS')
+        with open('$(workspaces.source.path)/logs.txt') as f:
+            logs = f.read()
+        message = f"""\
+        Subject: $(params.subject)
+        To: {receiver_emails}
+        From: {sender_email}
+
+        Logs for PipelineRun :
+        {logs}
+
+        $(params.body)"""
+        print(message)
+        if tls == 'True':
+            context = ssl.create_default_context()
+            server = smtplib.SMTP_SSL(smtp_server, port, context=context)
+        else:
+            server = smtplib.SMTP(smtp_server, port)
+        if password != '':
+            server.login(user, password)
+        for receiver in [item for item in receiver_emails.split(' ') if item]:
+            server.sendmail(sender_email, receiver, message.encode('utf-8'))
+        server.quit()
+  workspaces:
+    - description: The workspace consisting of maven project.
+      name: source

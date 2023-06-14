@@ -1,0 +1,65 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: newpipeline
+spec:
+  description: | 
+    This pipeline clones a git repo, then echoes the README file to the stout.
+  params:
+  - name: url
+    type: string
+    description: The git repo URL to clone from.
+  - name: image-reference
+    type: string
+    description: 
+  workspaces:
+  - name: shared-data
+    description: | 
+      This workspace contains the cloned repo files, so they can be read by the
+      next task.
+  - name: git-credentials
+    description: My ssh credentials
+  - name: docker-credentials
+    description: My Docker credentials
+  tasks:
+  - name: fetch-source
+    taskRef:
+      kind: ClusterTask
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-data
+    - name: ssh-directory
+      workspace: git-credentials
+    params:
+    - name: url
+      value: $(params.url)
+  # - name: show-readme
+  #   runAfter: ["fetch-source"]
+  #   taskRef:
+  #     name: show-readme
+  #   workspaces:
+  #   - name: source
+  #     workspace: shared-data
+  # - name: build-push
+  #   runAfter: ["fetch-source"]
+  #   taskRef:
+  #     kind: ClusterTask
+  #     name: buildah
+  #   workspaces:
+  #   - name: source
+  #     workspace: shared-data
+  #   # - name: dockerconfig
+  #   #   workspace: docker-credentials
+  #   params:
+  #   - name: IMAGE
+  #     value: $(params.image-reference)
+  - name: build
+    runAfter: ["fetch-source"]
+    taskRef:
+      name: maven
+    workspaces:
+    - name: source
+      workspace: shared-data
+    - name: maven-settings
+      workspace: shared-data

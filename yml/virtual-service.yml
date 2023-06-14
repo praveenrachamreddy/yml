@@ -1,0 +1,151 @@
+  apiVersion: networking.istio.io/v1beta1
+  kind: VirtualService
+  metadata:
+    creationTimestamp: "2022-10-11T12:26:38Z"
+    generation: 11
+    name: finacle-istio-virtualservice
+    namespace: santander-glm-dev
+    resourceVersion: "779666899"
+    uid: c6ee4021-ee98-428c-b88a-939f744e6819
+  spec:
+    gateways:
+    - finacle-istio-gateway
+    hosts:
+    - dev-glm-fc.apps.cloud.infosysitpaas.local
+    http:
+    - match:
+      - uri:
+          prefix: /fiuifininfra/
+      route:
+      - destination:
+          host: fiui-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /fiuicore/
+      route:
+      - destination:
+          host: fiui-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /finbranch-py/
+      route:
+      - destination:
+          host: finbranch-py-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-va/
+      route:
+      - destination:
+          host: finbranch-va-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-lm/
+      route:
+      - destination:
+          host: finbranch-lm-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-rof/
+      route:
+      - destination:
+          host: finbranch-rof-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /fipRest/
+      route:
+      - destination:
+          host: fip-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /FIPUI/
+      route:
+      - destination:
+          host: fip-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /fsbGenericWebService/
+      route:
+      - destination:
+          host: fip-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /fsbhttphandler/
+      route:
+      - destination:
+          host: fip-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /fip-jca/
+      route:
+      - destination:
+          host: fip-jca-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9090
+    - match:
+      - uri:
+          prefix: /fip/
+      route:
+      - destination:
+          host: fip-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 9080
+    - match:
+      - uri:
+          prefix: /finbranch-fip-py/
+      route:
+      - destination:
+          host: finbranch-fip-py-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-fip-va/
+      route:
+      - destination:
+          host: finbranch-fip-va-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-fip-lm/
+      route:
+      - destination:
+          host: finbranch-fip-lm-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /finbranch-fip-rof/
+      route:
+      - destination:
+          host: finbranch-fip-rof-svc.santander-glm-dev.svc.cluster.local
+          port:
+            number: 8080
+    - match:
+      - uri:
+          prefix: /fininfra/
+      route:
+      - destination:
+          host: fininfra-svc
+          port:
+            number: 8080

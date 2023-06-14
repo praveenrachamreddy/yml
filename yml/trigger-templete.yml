@@ -1,0 +1,42 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: trigger-template-ci-pipeline-3v3y74
+  namespace: ci-pipeline
+spec:
+  params:
+    - name: git-revision
+    - name: git-commit-message
+    - name: git-repo-url
+    - name: git-repo-name
+    - name: content-type
+    - name: pusher-name
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: ci-pipeline-
+        labels:
+          tekton.dev/pipeline: ci-pipeline
+        namespace: ci-pipeline
+      spec:
+        params:
+          - name: APP_SOURCE_GIT
+            value: 'https://github.com/praveenrachamreddy/sample-web-application.git'
+          - name: APP_SOURCE_REVISION
+            value: ansible-sonar
+          - name: IMAGE
+            value: quay.io/praveenrachamreddy/ci-pipeline
+          - name: TAG
+            value: latest
+          - name: APP_CONFIG_GIT
+            value: 'https://github.com/praveenrachamreddy/WebApp-config.git'
+        pipelineRef:
+          name: ci-pipeline
+        workspaces:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: shared-workspace
+          - name: maven-settings
+            persistentVolumeClaim:
+              claimName: shared-workspace

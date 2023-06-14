@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-pipeline-13 
+spec:
+  params:
+    - default: 'https://github.com/praveenrachamreddy/sample-web-application.git'
+      description: The application git repository
+      name: APP_SOURCE_GIT
+      type: string
+    - default: ansible-sonar
+      description: The application git revision
+      name: APP_SOURCE_REVISION
+      type: string
+    - default: quay.io/praveenrachamreddy/ci-pipeline 
+      name: IMAGE
+      type: string
+    - default: 'https://github.com/praveenrachamreddy/WebApp-config.git'
+      description: The application configuration git repository
+      name: GIT_CONFIG_REPO
+      type: string
+  tasks:
+    - name: source-clone
+      params:
+        - name: url
+          value: $(params.APP_SOURCE_GIT)
+        - name: revision
+          value: $(params.APP_SOURCE_REVISION)
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: get-version
+      runAfter:
+        - source-clone
+      taskRef:
+        kind: Task
+        name: maven-get-project-version
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: release-app
+      params:
+        - name: GOALS
+          value:
+            - package
+      runAfter:
+        - get-version
+      taskRef:
+        kind: ClusterTask
+        name: maven
+      workspaces:
+        - name: source
+          workspace: workspace
+        - name: maven-settings
+          workspace: maven-settings
+    - name: build
+      params:
+        - name: IMAGE
+          value: '$(params.IMAGE):$(tasks.source-clone.results.commit)'
+      runAfter:
+        - release-app
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: git-update-deployment
+      params:
+        - name: GIT_REPOSITORY
+          value: $(params.GIT_CONFIG_REPO)
+        - name: CURRENT_IMAGE
+          value: quay.io/praveenrachamreddy/ci-pipeline
+        - name: NEW_IMAGE
+          value: '$(params.IMAGE):$(tasks.source-clone.results.commit)'
+        - name: NEW_DIGEST
+          value: $(tasks.build.results.IMAGE_DIGEST)
+        - name: KUSTOMIZATION_PATH
+          value: app
+      runAfter:
+        - build
+      taskRef:
+        kind: Task
+        name: git-update-deployment
+      workspaces:
+        - name: workspace
+          workspace: workspace
+  workspaces:
+    - name: workspace
+    - name: maven-settings

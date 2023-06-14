@@ -1,0 +1,10 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: git-clone-task-run
+  namespace: pkr-demo
+spec:
+  params:
+  - name: repo-url
+  taskRef:
+  - name: git-clone

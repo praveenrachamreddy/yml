@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sonarqube-maven-example
+  name: sonarqube-maven-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube-maven-example
+  template:
+    metadata:
+      labels:
+        app: sonarqube-maven-example
+    spec:
+      containers:
+        - image: quay.io/praveenrachamreddy/ci-pipeline
+          imagePullPolicy: Always
+          name: sonarqube-maven-example
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: sonarqube-maven-example
+  name: sonarqube-maven-example
+spec:
+  type: NodePort
+  ports:
+    - name: 8080-tcp
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: sonarqube-maven-example
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: sonarqube-maven-example
+  name: sonarqube-maven-example
+spec:
+  port:
+    targetPort: 8080-tcp
+  to:
+    kind: Service
+    name: sonarqube-maven-example
+    weight: 100
+          

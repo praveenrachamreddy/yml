@@ -1,0 +1,65 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-image
+spec:
+  params:
+    - name: IMAGE
+      type: string
+    - name: TAG
+      type: string
+    - name: DIGEST
+      type: string
+  workspaces:
+    - name: source
+      emptyDir: {}
+    - name: tools
+      emptyDir: {}
+  steps:
+    - name: delete-existing-directory
+      image: alpine
+      command: ["/bin/sh"]
+      args: ["-c", "rm -rf /workspace/source/*"]
+    - name: git-clone
+      image: alpine/git
+      workingDir: /workspace/source
+      command: ["/bin/sh"]
+      args: ["-c", "git clone https://github.com/praveenrachamreddy/WebApp-config.git ."]
+    - name: update-yaml
+      image: alpine
+      workingDir: /workspace/source
+      command: ["/bin/sh"]
+      args:
+        - "-c"
+        - |
+          cd app
+          sed -i "s|{{params.IMAGE}}:{{params.TAG}}@{{params.DIGEST}}|$(params.IMAGE):$(params.TAG))@$(params.DIGEST))|g" deployment.yaml
+      env:
+        - name: IMAGE
+          value: "$(params.IMAGE)"
+        - name: TAG
+          value: "$(params.TAG)"
+        - name: DIGEST
+          value: "$(params.DIGEST)"
+    - name: git-commit
+      image: alpine/git
+      workingDir: /workspace/source
+      command: ["/bin/sh"]
+      args:
+        - "-c"
+        - |
+          git add deployment.yaml
+          git config --global user.email "rachamreddypraveen@gmail.com"
+          git config --global user.name "praveenrachamreddy"
+          git commit -m "Update image to $(params.IMAGE):$(params.TAG)@$(params.DIGEST)"
+    - name: git-push
+      image: alpine/git
+      workingDir: /workspace/source
+      command: ["/bin/sh"]
+      args: ["-c", "git push origin master"]
+      env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-token
+              key: token

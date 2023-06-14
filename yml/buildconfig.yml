@@ -1,0 +1,164 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: app1
+  namespace: custom
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: mysecret
+  namespace: custom
+data:
+  WebHookSecretKey: Um5rcl83NzU3 # this is base64 encoded value of our secret passwd
+---
+
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/praveenrachamreddy/ruby-hello-world.git
+      ref: master
+    contextDir: /
+  strategy:
+    dockerStrategy:
+    type: Docker
+  output:
+    to:
+      kind: ImageStreamTag
+      name: app1:latest
+  runPolicy: Serial
+  triggers:
+    - type: "GitHub"
+      github:
+        secretReference:
+          name: "mysecret"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+          - app1
+        from:
+          kind: ImageStreamTag
+          namespace: custom
+          name: 'app1:latest'
+        lastTriggeredImage: >-
+          image-registry.openshift-image-registry.svc:5000/custom/app1@sha256:dbc99232c73667f72c3efcc9c120d414f63aa3be6cb52506ad2b2cb4deb6c059
+    - type: ConfigChange
+  selector:
+    app: app1
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+        - name: app1
+          image: >-
+            image-registry.openshift-image-registry.svc:5000/custom/app1
+          ports:
+          - containerPort: 8080
+          livenessProbe:
+            exec:
+              command: 
+                - /bin/sh
+                - -c 
+                - nc -z localhost 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+      #     readinessProbe:
+      #       httpGet:
+      #         path: / #we need to give health check path
+      #         port: 80
+      #       initialDelaySeconds: 60
+      #       periodSeconds: 10  
+          resources:
+            requests:
+              memory: "200Mi"
+              cpu: "250m"
+            limits:
+              memory: "328Mi"
+              cpu: "500m"
+      #     volumeMounts:
+      #     - mountPath: /app # we need to give working directory
+      #       name: app1
+      # volumes:
+      # - name: app1 
+      #   persistentVolumeClaim:
+      #     claimName: app1                  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  selector:
+    app: app1
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+     
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  path: /
+  to:
+    kind: Service
+    name: app1
+  port:
+    targetPort: 8080
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: app1
+  namespace: custom
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: DeploymentConfig
+    name: app1
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          averageUtilization: 50
+          type: Utilization
+
