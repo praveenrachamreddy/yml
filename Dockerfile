@@ -1,18 +1,11 @@
-FROM registry.access.redhat.com/ubi8/ubi:latest
+FROM python:3.9
 
-USER root
-
-# Install required packages
-RUN dnf install -y curl jq
-
-# Set the working directory
 WORKDIR /app
 
-# Copy the vulnerability script to the image
-COPY vulnerability_scan.sh /app/vulnerability_scan.sh
+COPY requirements.txt .
 
-# Make the script executable
-RUN chmod +x /app/vulnerability_scan.sh
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the entrypoint to execute the vulnerability script
-ENTRYPOINT ["/app/vulnerability_scan.sh"]
+COPY . .
+
+CMD ["python", "app.py"]
